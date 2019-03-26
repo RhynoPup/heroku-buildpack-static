@@ -51,6 +51,28 @@ http {
   <% end %>
 
     location / {
+
+    # adding ruby block to configure semi-private site
+    <% if semi_private %>
+      set $deny 1;
+
+      # If we see the magic "key" param in the query string, set 
+      # the cookie and redirect to the site without the query string
+      if ($query_string ~ "(.*)key\=([A-Za-z0-9]+)(&?)(.*)") {
+        set $key $2;
+        add_header Set-Cookie "key=$key;Path=/;Max-Age=31536000";
+        rewrite ^(.*)$ $1? permanent;
+      }
+
+      if ($http_cookie ~* "<%= ENV['SECRETMAGICKEY'] %>") {
+        set $deny 0;
+      }
+   
+      if ($deny) {
+        return 403;
+      }
+    <% end %>
+
       mruby_post_read_handler /app/bin/config/lib/ngx_mruby/headers.rb cache;
       mruby_set $fallback /app/bin/config/lib/ngx_mruby/routes_fallback.rb cache;
     <% if clean_urls %>
